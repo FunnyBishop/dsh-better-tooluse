@@ -604,7 +604,7 @@ export function apply(ctx, rawConfig = {}) {
 
   const actToolDefinition = {
     name: ACT_TOOL_NAME,
-    description: 'Mandatory wrapper for ordinary tool calls so every call carries a describe field. Call act({describe, tool, input}) instead of the tool directly. describe is required: first the thinking result that led here, then "→" and the purpose of this tool call in this step. Interactive/control tools (ask_user_question, present, render_ui, event, team/subagent, goal, schedule, job, terminal, skill, todo, workflow, plugin_manager, cordis_*) may be called directly; if a direct call is refused, wrap it with act.',
+    description: 'Mandatory wrapper for ordinary tool calls so every call carries a describe field. Call act({describe, tool, input}) instead of the tool directly. describe is required: first the thinking result that led here, then "→" and the purpose of this tool call in this step. Keep the call small: do not inline long scripts, heredocs or multi-line shell commands inside input — write them to a file first (ops_write_file or a short printf) and run that file (for bash use ops_bash with script_path). A tool call whose arguments JSON is very long risks truncation and then fails with an unterminated-string parse error before reaching any tool. Interactive/control tools (ask_user_question, present, render_ui, event, team/subagent, goal, schedule, job, terminal, skill, todo, workflow, plugin_manager, cordis_*) may be called directly; if a direct call is refused, wrap it with act.',
     parameters: {
       type: 'object',
       additionalProperties: false,

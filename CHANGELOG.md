@@ -2,6 +2,11 @@
 
 All notable changes to this project are documented here. The project follows a loose semantic-versioning scheme tied to DSH Harness releases.
 
+## [0.3.3] - 2026-11-09
+
+### Changed
+- `act` description and the protocol/skill now tell the model to keep tool arguments small: write long scripts to a file first and run them via `script_path` instead of inlining heredocs, which can truncate the arguments JSON and fail with `Unterminated string in JSON`.
+
 ## [0.3.2] - 2026-11-09
 
 ### Fixed

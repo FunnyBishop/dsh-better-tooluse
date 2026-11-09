@@ -32,6 +32,17 @@ act({ describe: "<思考结果> → <本步工具作用>", tool: "<工具名>", 
 - 可直接调用的交互/控制类工具：`ask_user_question`、`present`、`render_ui`、`validate_dsh_ui`、`event`、`skill`、`todo_write`、`workflow`、团队/子代理、目标、日程、作业、终端、`plugin_manager`、`cordis_*`。
 - 包装后不再显示各工具的原生富卡片（diff/搜索/终端卡），统一为 describe 优先的 act 卡；子代理会话不受强制约束。
 
+## 2.5 长命令与脚本（避免参数 JSON 截断）
+
+超长或多行的工具参数（典型：内联 heredoc、几百行的 python/shell 脚本）容易让整条工具调用的 JSON 在生成时被截断，DSH 会直接报 `Unterminated string in JSON`，此时插件和工具都收不到请求。
+
+规则：
+
+- 先写文件：`ops_write_file` 写入脚本（内容较长时也可分批追加）。
+- 再执行文件：`ops_bash({ script_path: "<脚本路径>" })`，或 `rw_exec` 运行远程脚本。
+- `act` 的 `input` 保持精简：单行命令一般控制在几百字符内；不要把大段 JSON/日志/代码塞进参数。
+- 若报错反复出现，检查该模型的 max output tokens（截断通常发生在输出预算耗尽处）。
+
 ## 3. 阶段梳理卡（额外补充）
 
 在以下时机可额外输出一个精简 `dsh-ui` 围栏：目标确定后、阶段完成或方向调整后、用户点侧栏「生成梳理卡」时。保持 ≤3 个组件（`steps` / `callout` / `timeline`），不重复工具原始输出；不要每步出卡。若系统提示没有 UI 围栏约定则跳过。
