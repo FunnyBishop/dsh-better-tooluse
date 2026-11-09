@@ -2,6 +2,11 @@
 
 All notable changes to this project are documented here. The project follows a loose semantic-versioning scheme tied to DSH Harness releases.
 
+## [0.3.4] - 2026-11-09
+
+### Added
+- `act` now repairs malformed argument JSON before failing: raw control characters, trailing commas, truncated strings and unclosed objects/arrays are closed and retried once (`lib/repair.js`). When DSH preserves unparseable tool-call arguments as a raw string, the call can still run instead of being rejected.
+
 ## [0.3.3] - 2026-11-09
 
 ### Changed

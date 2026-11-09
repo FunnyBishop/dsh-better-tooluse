@@ -35,6 +35,7 @@ import { fileURLToPath } from 'node:url'
 import { buildProtocolText } from './lib/protocol.js'
 import { normalizeConfig, clientConfigOf } from './lib/config.js'
 import { describeGuardDecision, DEFAULT_EXEMPT } from './lib/guard.js'
+import { normalizeActArguments } from './lib/repair.js'
 
 /* ------------------------------------------------------------------ prompt -- */
 
@@ -630,9 +631,14 @@ export function apply(ctx, rawConfig = {}) {
         ok: !(value !== null && typeof value === 'object' && value.isError === true),
       }),
     },
-    async execute(args, exec) {
+    async execute(rawArgs, exec) {
       const agent = exec.agent
       if (agent === undefined) throw new Error('act requires an agent session')
+      const normalizedArgs = normalizeActArguments(rawArgs)
+      if (normalizedArgs.value === null) {
+        throw new Error('act arguments are not valid JSON and could not be repaired (' + String(normalizedArgs.reason ?? 'unparseable') + '). Keep the call small: write long scripts to a file first and pass script_path instead of inlining them.')
+      }
+      const args = normalizedArgs.value
       const describe = typeof args.describe === 'string' ? args.describe.trim() : ''
       if (describe.length === 0) throw new Error('describe is required: act({describe:"<thinking result> → <purpose>", tool:"<tool name>", input:{...}})')
       const tool = typeof args.tool === 'string' ? args.tool.trim() : ''
@@ -673,6 +679,7 @@ export function apply(ctx, rawConfig = {}) {
         isError: first.isError === true,
         content: Array.isArray(first.content) ? first.content : [],
         ...(first.meta === undefined ? {} : { meta: first.meta }),
+        ...(normalizedArgs.repaired ? { repaired: true } : {}),
       }
     },
   }

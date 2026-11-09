@@ -10,6 +10,7 @@ import {
 import { describeGuardDecision, DEFAULT_EXEMPT } from '../lib/guard.js'
 import { normalizeConfig, CONFIG_DEFAULTS } from '../lib/config.js'
 import { buildProtocolText } from '../lib/protocol.js'
+import { repairJsonText, normalizeActArguments } from '../lib/repair.js'
 
 test('splitDescribe splits on the last arrow', () => {
   assert.deepEqual(splitDescribe('判断：先看日志 → 用 grep 查错误'), {
@@ -108,4 +109,37 @@ test('buildProtocolText keeps core rules in both tones', () => {
   assert.ok(normal.length > quiet.length)
   const noEvent = buildProtocolText({ tone: 'normal', eventEnabled: false })
   assert.ok(noEvent.includes('事件化已关闭'))
+})
+
+test('repairJsonText closes a truncated string and object', () => {
+  const result = repairJsonText('{"describe":"验证一下')
+  assert.equal(result.repaired, true)
+  assert.equal(result.value.describe, '验证一下')
+})
+
+test('repairJsonText completes nested structures', () => {
+  const result = repairJsonText('{"describe":"x","tool":"ops_bash","input":{"command":"echo hi"')
+  assert.equal(result.repaired, true)
+  assert.equal(result.value.input.command, 'echo hi')
+})
+
+test('repairJsonText drops trailing commas and escapes raw newlines', () => {
+  const result = repairJsonText('{"a":1,\n"b":"line1\nline2",}')
+  assert.equal(result.repaired, true)
+  assert.equal(result.value.a, 1)
+  assert.equal(result.value.b, 'line1\nline2')
+})
+
+test('repairJsonText reports unrepairable garbage', () => {
+  assert.equal(repairJsonText('not json at all').value, undefined)
+  assert.equal(repairJsonText(undefined).repaired, false)
+})
+
+test('normalizeActArguments passes objects and repairs strings', () => {
+  const direct = { describe: 'a → b', tool: 'ops_bash', input: {} }
+  assert.deepEqual(normalizeActArguments(direct), { value: direct, repaired: false })
+  const repaired = normalizeActArguments('{"describe":"a → b","tool":"ops_bash","input":{')
+  assert.equal(repaired.repaired, true)
+  assert.equal(repaired.value.tool, 'ops_bash')
+  assert.equal(normalizeActArguments('}{').value, null)
 })
