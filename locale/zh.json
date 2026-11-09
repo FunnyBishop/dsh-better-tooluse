@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "工具梳理 · Better tool use",
+    "description": "让智能体在回答中播报每一次判断与工具事件，用 GenUI 渲染阶段梳理卡，并在 better-sidebar 中提供实时「梳理」面板。"
+  }
+}

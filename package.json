@@ -1,0 +1,65 @@
+{
+  "name": "dsh-better-tooluse",
+  "version": "0.3.1",
+  "description": "Better tool-use visibility: mandatory act/describe wrapper, decision-stream protocol with a packaged skill, live act cards in the 梳理 sidebar, configurable enforcement, and background-event support.",
+  "icon": "./icon.svg",
+  "type": "module",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "SKILL.md",
+    "lib/*.js",
+    "cordis.patch.yml",
+    "locale/*.json",
+    "icon.svg",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "scripts": {
+    "test": "node --test tests/core.test.mjs"
+  },
+  "engines": {
+    "dsh": ">=0.2.2-rc.1 <0.3.0"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-conversation",
+        "dsh-better-sidebar"
+      ]
+    }
+  },
+  "license": "MIT",
+  "author": "FunnyBishop <2082147080@qq.com>",
+  "keywords": [
+    "dsh",
+    "deepseek-harness",
+    "cordis",
+    "plugin",
+    "tool-use",
+    "observability",
+    "decision-stream",
+    "genui",
+    "better-sidebar"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/FunnyBishop/dsh-better-tooluse.git"
+  },
+  "homepage": "https://github.com/FunnyBishop/dsh-better-tooluse#readme",
+  "bugs": {
+    "url": "https://github.com/FunnyBishop/dsh-better-tooluse/issues"
+  }
+}

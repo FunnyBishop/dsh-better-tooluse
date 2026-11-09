@@ -1,0 +1,7 @@
+# Bundle patch for dsh-better-tooluse.
+# The Host half publishes the decision-narration protocol and serves the live
+# event stream; the Client half renders the composer strip and the 梳理 tab
+# registered through better-sidebar's ctx.betterSidebar service.
+- insert:
+    - id: dsh-better-tooluse
+      name: dsh-better-tooluse

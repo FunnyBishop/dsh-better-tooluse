@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="ds-flow" x1="8" y1="8" x2="56" y2="56" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#2f6fed"/>
+      <stop offset="1" stop-color="#3ecf8e"/>
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="#101826"/>
+  <path d="M16 18c0-3.3 2.7-6 6-6h14c3.3 0 6 2.7 6 6v6c0 3.3-2.7 6-6 6H26l-6 5v-5h-1c-1.7 0-3-1.3-3-3v-9z" fill="url(#ds-flow)"/>
+  <circle cx="24" cy="21" r="2.2" fill="#101826"/>
+  <circle cx="31" cy="21" r="2.2" fill="#101826"/>
+  <circle cx="38" cy="21" r="2.2" fill="#101826"/>
+  <path d="M24 40v6a6 6 0 0 0 6 6h10l6 5v-11a6 6 0 0 0-6-6H30" fill="none" stroke="#3ecf8e" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="30" cy="46" r="2.4" fill="#3ecf8e"/>
+  <circle cx="38" cy="46" r="2.4" fill="#3ecf8e"/>
+</svg>

@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Better tool use",
+    "description": "Narrates each judgement and tool step with GenUI stage digests, and adds a 梳理 digest tab to better-sidebar for the live run."
+  }
+}
