@@ -2,6 +2,11 @@
 
 All notable changes to this project are documented here. The project follows a loose semantic-versioning scheme tied to DSH Harness releases.
 
+## [0.3.2] - 2026-11-09
+
+### Fixed
+- 梳理页主按钮与选中筛选 chip 的前景色改用主题反色 token（`--dsw-alias-bg-base`），修复浅色 `brand-primary` 主题下白字看不清的问题。
+
 ## [0.3.1] - 2026-11-09
 
 ### Fixed
