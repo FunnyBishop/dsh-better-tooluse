@@ -300,6 +300,9 @@ export function apply(ctx, rawConfig = {}) {
     ...(record.finishedAt === undefined ? {} : { finishedAt: record.finishedAt }),
     ...(record.summary === undefined ? {} : { summary: record.summary }),
     ...(record.error === undefined ? {} : { error: record.error }),
+    ...(record.output === undefined ? {} : { output: record.output }),
+    ...(record.progressAt === undefined ? {} : { progressAt: record.progressAt }),
+    ...(record.auto === true ? { auto: true } : {}),
   })
 
   const backgroundView = (record) => ({
@@ -314,6 +317,9 @@ export function apply(ctx, rawConfig = {}) {
     ...(record.finishedAt === undefined ? {} : { endedAt: record.finishedAt }),
     ...(record.summary === undefined ? {} : { summary: record.summary }),
     ...(record.error === undefined ? {} : { error: record.error }),
+    ...(record.output === undefined ? {} : { output: record.output }),
+    ...(record.progressAt === undefined ? {} : { progressAt: record.progressAt }),
+    ...(record.auto === true ? { auto: true } : {}),
   })
 
   const broadcastBackground = (record) => {
@@ -331,6 +337,93 @@ export function apply(ctx, rawConfig = {}) {
     broadcast(record.sessionId, state, { type: 'event', event: view })
   }
 
+  /** Start periodic progress broadcasts for a running background event. */
+  const startProgress = (record) => {
+    if (config.eventProgressMs <= 0 || record.progressTimer !== undefined) return
+    record.progressTimer = setInterval(() => {
+      if (record.status !== 'running') return
+      record.progressAt = Date.now()
+      broadcastBackground(record)
+    }, config.eventProgressMs)
+    if (typeof record.progressTimer?.unref === 'function') record.progressTimer.unref()
+  }
+
+  const stopProgress = (record) => {
+    if (record.progressTimer === undefined) return
+    clearInterval(record.progressTimer)
+    record.progressTimer = undefined
+  }
+
+  /** Create, register and broadcast one background record. */
+  const createBackgroundRecord = (sessionId, tool, label, argsSummary, controller, auto) => {
+    backgroundSeq += 1
+    const record = {
+      eventId: 'evt-' + backgroundPrefix + '-' + backgroundSeq,
+      sessionId,
+      tool,
+      label,
+      argsSummary,
+      status: 'running',
+      startedAt: Date.now(),
+      controller,
+      ...(auto === true ? { auto: true } : {}),
+    }
+    backgroundEvents.set(record.eventId, record)
+    broadcastBackground(record)
+    startProgress(record)
+    if (backgroundEvents.size > 100) {
+      const oldestSettled = [...backgroundEvents.values()].find(item => item.status !== 'running')
+      if (oldestSettled !== undefined) {
+        stopProgress(oldestSettled)
+        backgroundEvents.delete(oldestSettled.eventId)
+      }
+    }
+    return record
+  }
+
+  /** Settle one record from a tools.execute batch. */
+  const settleFromBatch = (record, batch) => {
+    if (record.status !== 'running') return
+    const first = Array.isArray(batch?.results) && batch.results.length > 0 ? batch.results[0].result : undefined
+    if (first === undefined) {
+      settleBackground(record, 'failed', { summary: 'the background tool produced no result', error: 'no result' })
+      return
+    }
+    const text = textContentOf(first.content)
+    const summary = text.length > 0 ? truncate(text, 180) : ''
+    if (first.isError === true) {
+      settleBackground(record, 'failed', { summary: summary || 'tool returned an error', error: summary || 'tool returned an error', output: text.slice(0, MAX_EVENT_OUTPUT_CHARS) })
+    } else {
+      settleBackground(record, 'completed', { summary, output: text.slice(0, MAX_EVENT_OUTPUT_CHARS) })
+    }
+  }
+
+  /** Attach an already-started execution to a record. */
+  const attachBackgroundExecution = (record, execution) => {
+    execution.then(batch => settleFromBatch(record, batch)).catch(error => {
+      if (record.status !== 'running') return
+      const message = truncate(String(error?.message ?? error), 300)
+      settleBackground(record, 'failed', { summary: message, error: message })
+    })
+  }
+
+  /** Wait up to ms; when it runs longer the execution continues as a background event. */
+  const raceAutoEventize = (execution, ms) => new Promise((resolve) => {
+    let settled = false
+    const timer = setTimeout(() => {
+      if (settled) return
+      settled = true
+      resolve({ kind: 'detached' })
+    }, ms)
+    if (typeof timer?.unref === 'function') timer.unref()
+    execution.then(
+      batch => { if (settled) return; settled = true; clearTimeout(timer); resolve({ kind: 'done', batch }) },
+      error => { if (settled) return; settled = true; clearTimeout(timer); resolve({ kind: 'error', error }) },
+    )
+  })
+
+
+
   /** Join the text blocks of a tool result, bounded. */
   const textContentOf = (content) => {
     const parts = []
@@ -340,19 +433,26 @@ export function apply(ctx, rawConfig = {}) {
     return parts.join('\n')
   }
 
-  /** Deliver a settled background event as a user-role notice and wake the agent (next turn). */
+  /** Deliver a settled background event as a durable notice and wake the agent (next turn). */
   const deliverBackgroundNotice = async (record) => {
     try {
       const agents = ctx.get('agents')
       const agent = agents !== undefined && typeof agents.get === 'function' ? agents.get(record.sessionId) : undefined
       if (agent === undefined || agent === null) return
       const seconds = Math.max(0, Math.round(((record.finishedAt ?? Date.now()) - record.startedAt) / 1000))
-      const subject = `Background event ${record.eventId} (${record.tool}${record.label !== record.tool ? ` · ${record.label}` : ''})`
-      const outcome = record.status === 'completed' ? `finished after ${seconds}s.` : record.status === 'killed' ? `was stopped after ${seconds}s.` : `failed after ${seconds}s.`
-      const lines = [`System notice: ${subject} ${outcome}`]
-      if (record.error !== undefined) lines.push(`Error: ${record.error}`)
-      if (typeof record.output === 'string' && record.output.length > 0) lines.push('Output (may be truncated):', record.output)
-      lines.push('Continue the task in the user\'s language. Open your report with a "↳ 发现" line; do not re-run the event unless its result is unusable.')
+      const outcome = record.status === 'completed' ? '已完成' : record.status === 'killed' ? '已取消' : '失败'
+      const heading = '**⚙ 后台事件 · ' + record.eventId + '**（' + record.tool + (record.label !== record.tool ? ' · ' + record.label : '') + '）' + outcome + ' · ' + seconds + 's' + (record.auto === true ? ' · 自动转后台' : '')
+      const lines = [heading]
+      if (typeof record.summary === 'string' && record.summary.length > 0) lines.push('> ' + record.summary)
+      if (record.error !== undefined) lines.push('**错误**：' + record.error)
+      if (typeof record.output === 'string' && record.output.length > 0) {
+        lines.push('')
+        lines.push('```text')
+        lines.push(record.output)
+        lines.push('```')
+      }
+      lines.push('')
+      lines.push('用 ↳ 发现 汇报这条事件结果（可在右侧「梳理」面板展开全文）；除非结果不可用，不要重跑该事件。')
       const message = deepFreeze({
         id: randomUUID(),
         role: 'user',
@@ -366,6 +466,7 @@ export function apply(ctx, rawConfig = {}) {
   }
 
   const settleBackground = (record, status, extra) => {
+    stopProgress(record)
     record.status = status
     record.finishedAt = Date.now()
     if (extra?.summary !== undefined) record.summary = extra.summary
@@ -650,13 +751,51 @@ export function apply(ctx, rawConfig = {}) {
       const definition = toolsService.executable(tool, agent, exec.toolSet)
       if (definition === undefined) throw new Error('tool "' + tool + '" is not callable by this session right now')
       const input = args.input !== null && typeof args.input === 'object' && !Array.isArray(args.input) ? args.input : {}
-      const batch = await toolsService.execute({
+      const innerController = new AbortController()
+      const outerSignal = exec.signal
+      const forwardAbort = () => {
+        try {
+          innerController.abort()
+        } catch {
+          /* already aborted */
+        }
+      }
+      if (outerSignal !== undefined && outerSignal !== null && typeof outerSignal.addEventListener === 'function') {
+        if (outerSignal.aborted === true) forwardAbort()
+        else outerSignal.addEventListener('abort', forwardAbort, { once: true })
+      }
+      const execution = toolsService.execute({
         calls: [{ type: 'tool-call', id: 'act-inner-' + randomUUID(), name: tool, arguments: JSON.stringify(input) }],
-        signal: exec.signal,
+        signal: innerController.signal,
         agent,
         ...(exec.toolSet === undefined ? {} : { toolSet: exec.toolSet }),
         maxParallelToolCalls: 1,
       })
+      let batch
+      let detachedRecord = null
+      if (config.autoEventizeMs > 0) {
+        const raced = await raceAutoEventize(execution, config.autoEventizeMs)
+        if (raced.kind === 'detached') {
+          if (typeof outerSignal?.removeEventListener === 'function') outerSignal.removeEventListener('abort', forwardAbort)
+          detachedRecord = createBackgroundRecord(String(agent.id), tool, 'auto · ' + tool, summarizeArgs(JSON.stringify(input)), innerController, true)
+          attachBackgroundExecution(detachedRecord, execution)
+        } else if (raced.kind === 'error') {
+          throw raced.error
+        } else {
+          batch = raced.batch
+        }
+      } else {
+        batch = await execution
+      }
+      if (detachedRecord !== null) {
+        return {
+          describe,
+          tool,
+          isError: false,
+          content: [{ type: 'text', text: '已运行超过 ' + String(config.autoEventizeMs) + 'ms，自动转为后台事件 ' + detachedRecord.eventId + '（' + tool + '）。结果完成后会自动回到对话，可在右侧「梳理」面板查看进度与结果。' }],
+          meta: { describe, tool, ok: true, autoEventized: true, eventId: detachedRecord.eventId },
+        }
+      }
       for (const context of Array.isArray(batch.additionalContexts) ? batch.additionalContexts : []) {
         try {
           exec.deferContext(context)
@@ -768,9 +907,7 @@ export function apply(ctx, rawConfig = {}) {
         const record = backgroundEvents.get(String(args.eventId ?? ''))
         if (record === undefined || record.sessionId !== sessionId) throw new Error('unknown background event "' + String(args.eventId ?? '') + '"')
         if (record.status !== 'running') return { action: 'kill', event: eventPublic(record) }
-        record.status = 'killed'
-        record.finishedAt = Date.now()
-        broadcastBackground(record)
+        settleBackground(record, 'killed', { summary: 'stopped by user' })
         try {
           record.controller.abort()
         } catch {
@@ -787,57 +924,18 @@ export function apply(ctx, rawConfig = {}) {
       if (definition === undefined) throw new Error('tool "' + tool + '" is not callable by this session right now')
       const input = args.input !== null && typeof args.input === 'object' && !Array.isArray(args.input) ? args.input : {}
       const label = typeof args.label === 'string' && args.label.trim().length > 0 ? truncate(args.label.trim(), 80) : tool
-      backgroundSeq += 1
-      const eventId = 'evt-' + backgroundPrefix + '-' + backgroundSeq
       const controller = new AbortController()
-      const record = {
-        eventId,
-        sessionId,
-        tool,
-        label,
-        argsSummary: summarizeArgs(JSON.stringify(input)),
-        status: 'running',
-        startedAt: Date.now(),
-        controller,
-      }
-      backgroundEvents.set(eventId, record)
-      broadcastBackground(record)
-      if (backgroundEvents.size > 100) {
-        const oldestSettled = [...backgroundEvents.values()].find(item => item.status !== 'running')
-        if (oldestSettled !== undefined) backgroundEvents.delete(oldestSettled.eventId)
-      }
-      void (async () => {
-        try {
-          const batch = await toolsService.execute({
-            calls: [{ type: 'tool-call', id: 'event-' + eventId, name: tool, arguments: JSON.stringify(input) }],
-            signal: controller.signal,
-            agent,
-            maxParallelToolCalls: 1,
-          })
-          if (record.status === 'killed') {
-            settleBackground(record, 'killed', { summary: 'stopped before completion' })
-            return
-          }
-          const first = Array.isArray(batch.results) && batch.results.length > 0 ? batch.results[0].result : undefined
-          if (first === undefined) throw new Error('the background tool produced no result')
-          const text = textContentOf(first.content)
-          const summary = text.length > 0 ? truncate(text, 180) : ''
-          if (first.isError === true) {
-            settleBackground(record, 'failed', { summary: summary || 'tool returned an error', error: summary || 'tool returned an error', output: text.slice(0, MAX_EVENT_OUTPUT_CHARS) })
-          } else {
-            settleBackground(record, 'completed', { summary, output: text.slice(0, MAX_EVENT_OUTPUT_CHARS) })
-          }
-        } catch (error) {
-          if (record.status === 'killed') {
-            settleBackground(record, 'killed', { summary: 'stopped before completion' })
-            return
-          }
-          const message = truncate(String(error?.message ?? error), 300)
-          settleBackground(record, 'failed', { summary: message, error: message })
-        }
-      })()
+      const record = createBackgroundRecord(sessionId, tool, label, summarizeArgs(JSON.stringify(input)), controller, false)
+      const execution = toolsService.execute({
+        calls: [{ type: 'tool-call', id: 'event-' + record.eventId, name: tool, arguments: JSON.stringify(input) }],
+        signal: controller.signal,
+        agent,
+        maxParallelToolCalls: 1,
+      })
+      attachBackgroundExecution(record, execution)
       return {
         action: 'run',
+
         event: eventPublic(record),
         note: 'Started. Keep talking to the user or do other work; the result is delivered automatically when the event finishes and starts a new round.',
       }
@@ -1125,6 +1223,7 @@ export function apply(ctx, rawConfig = {}) {
   /** Close browser streams when this plugin unloads. */
   ctx.effect(() => () => {
     for (const record of backgroundEvents.values()) {
+      stopProgress(record)
       if (record.status !== 'running') continue
       record.status = 'killed'
       try {

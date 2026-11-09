@@ -79,6 +79,8 @@ test('normalizeConfig applies defaults and clamps', () => {
   assert.equal(defaults.enforceDescribe, 'hard')
   assert.equal(defaults.protocolTone, 'normal')
   assert.equal(defaults.eventEnabled, true)
+  assert.equal(defaults.autoEventizeMs, 60000)
+  assert.equal(defaults.eventProgressMs, 5000)
   assert.ok(Array.isArray(defaults.exemptTools))
   const custom = normalizeConfig({
     enforceDescribe: 'nope',
@@ -94,6 +96,8 @@ test('normalizeConfig applies defaults and clamps', () => {
   assert.equal(custom.actCardLimit, 30)
   assert.equal(custom.backfillEvents, 0)
   assert.equal(custom.showDockStrip, false)
+  assert.equal(normalizeConfig({ autoEventizeMs: -1 }).autoEventizeMs, 0)
+  assert.equal(normalizeConfig({ eventProgressMs: 999999 }).eventProgressMs, 60000)
 })
 
 test('buildProtocolText keeps core rules in both tones', () => {

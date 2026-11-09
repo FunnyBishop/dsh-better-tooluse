@@ -80,6 +80,10 @@ window.__ModuleLoader__.load({
         noAct: '暂无 act 调用',
         eventTag: '事件',
         events: '后台事件',
+        bgExpand: '查看结果',
+        bgCollapse: '收起',
+        bgNoOutput: '（暂无输出）',
+        autoTag: '自动',
         noEvents: '暂无后台事件',
         killing: '取消失败',
         killed: '已取消',
@@ -149,6 +153,10 @@ window.__ModuleLoader__.load({
         noAct: 'No act calls yet',
         eventTag: 'Event',
         events: 'Background events',
+        bgExpand: 'View result',
+        bgCollapse: 'Hide',
+        bgNoOutput: '(no output)',
+        autoTag: 'auto',
         noEvents: 'No background events yet',
         killing: 'Kill failed',
         killed: 'killed',
@@ -587,6 +595,14 @@ window.__ModuleLoader__.load({
 .dsb-foot-row .dsb-btn { padding: 4px 10px; }
 .dsb-spacer { flex: 1 1 auto; }
 .dsb-scroll-hint { font-size: 11px; opacity: .7; }
+.dsb-bg-list { display: flex; flex-direction: column; gap: 5px; }
+.dsb-bg-item { display: flex; flex-direction: column; gap: 3px; padding: 6px 8px; border: 1px solid var(--dsw-alias-border-l1); border-left: 2px solid var(--dsw-alias-brand-primary); border-radius: 7px; background: var(--dsw-alias-bg-base); }
+.dsb-bg-head { display: flex; align-items: center; gap: 6px; }
+.dsb-bg-label { font-weight: 600; color: var(--dsw-alias-label-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 46%; }
+.dsb-bg-meta { margin-left: auto; font-variant-numeric: tabular-nums; opacity: .75; font-size: 11px; }
+.dsb-bg-summary { color: var(--dsw-alias-label-secondary); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dsb-bg-pre { margin: 2px 0 0; max-height: 200px; overflow: auto; white-space: pre-wrap; word-break: break-word; font-family: var(--dsw-font-mono, monospace); font-size: 11px; color: var(--dsw-alias-label-primary); background: var(--dsw-alias-bg-layer-1); border-radius: 6px; padding: 6px; }
+
 .dsb-act { box-sizing: border-box; display: flex; flex-direction: column; gap: 3px; border: 1px solid var(--dsw-alias-border-l1); border-left: 3px solid var(--dsw-alias-brand-primary); border-radius: 8px; background: var(--dsw-alias-bg-layer-1); padding: 6px 9px; font-size: 12px; line-height: 1.5; }
 .dsb-act-head { display: flex; align-items: center; gap: 8px; }
 .dsb-act-tool { font-weight: 600; color: var(--dsw-alias-label-primary); }
@@ -803,6 +819,7 @@ window.__ModuleLoader__.load({
       const [busy, setBusy] = React.useState(false)
       const [actFilter, setActFilter] = React.useState('all')
       const [expandedAct, setExpandedAct] = React.useState(null)
+      const [expandedBg, setExpandedBg] = React.useState(null)
       const [nudgeMode, setNudgeMode] = React.useState('auto')
       const [toolFilter, setToolFilter] = React.useState('all')
       const reportedRef = React.useRef(false)
@@ -985,16 +1002,29 @@ window.__ModuleLoader__.load({
           background.length > 0
             ? h('div', { className: 'dsb-card' },
               h('div', { className: 'dsb-card-title' }, h(Icon, null), tr.events),
-              h('div', { className: 'dsb-usage' },
-                background.slice().reverse().slice(0, 12).map(event => {
+              h('div', { className: 'dsb-bg-list' },
+                background.slice().sort((a, b) => (a.status === 'running' ? 0 : 1) - (b.status === 'running' ? 0 : 1) || (b.time || 0) - (a.time || 0)).slice(0, 12).map(event => {
                   const state = event.status === 'running' ? tr.runningTool : event.status === 'killed' ? tr.killed : event.status === 'failed' ? tr.failed : tr.done
                   const tone = event.status === 'running' ? 'dsb-run' : event.status === 'killed' ? '' : event.status === 'failed' ? 'dsb-err' : 'dsb-ok'
-                  return h('div', { className: 'dsb-usage-row', key: event.id },
-                    h('span', { className: 'dsb-usage-name', title: event.label || event.tool }, event.label || event.tool),
-                    h('span', { className: 'dsb-chip ' + tone }, state),
-                    event.status === 'running'
-                      ? h('button', { className: 'dsb-btn', type: 'button', onClick: () => void killEvent(event.eventId) }, tr.kill)
-                      : h('span', { className: 'dsb-usage-meta' }, event.summary ? truncateText(event.summary, 48) : ''),
+                  const expanded = expandedBg === event.id
+                  const started = typeof event.time === 'number' ? event.time : null
+                  const end = typeof event.endedAt === 'number' ? event.endedAt : (typeof event.progressAt === 'number' ? event.progressAt : Date.now())
+                  const seconds = started === null ? 0 : Math.max(0, Math.round((end - started) / 1000))
+                  const output = typeof event.output === 'string' ? event.output : ''
+                  return h('div', { className: 'dsb-bg-item', key: event.id },
+                    h('div', { className: 'dsb-bg-head' },
+                      h('span', { className: 'dsb-bg-label', title: event.label || event.tool }, event.label || event.tool),
+                      event.auto === true ? h('span', { className: 'dsb-chip' }, tr.autoTag) : null,
+                      h('span', { className: 'dsb-chip ' + tone }, state),
+                      h('span', { className: 'dsb-bg-meta' }, seconds + 's'),
+                      event.status === 'running'
+                        ? h('button', { className: 'dsb-btn', type: 'button', onClick: () => void killEvent(event.eventId) }, tr.kill)
+                        : h('button', { className: 'dsb-btn', type: 'button', onClick: () => setExpandedBg(expanded ? null : event.id) }, expanded ? tr.bgCollapse : tr.bgExpand),
+                    ),
+                    event.summary ? h('div', { className: 'dsb-bg-summary' }, event.summary) : null,
+                    expanded
+                      ? h('pre', { className: 'dsb-bg-pre' }, output.length > 0 ? output : (event.error ? 'Error: ' + event.error : tr.bgNoOutput))
+                      : null,
                   )
                 }),
               ),

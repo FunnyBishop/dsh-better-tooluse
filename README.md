@@ -88,6 +88,8 @@ act({ describe: "需要确认依赖版本 → 读取 package.json", tool: "read"
 | `protocolTone` | `normal` | `normal` 含阶段梳理卡与事件化说明；`quiet` 仅核心规则 |
 | `eventEnabled` | `true` | 是否注册后台 `event` 工具 |
 | `backfillEvents` | `120` | 面板打开时回填事件数（0 关闭） |
+| `autoEventizeMs` | `60000` | act 包的工具超过该毫秒数时自动转后台事件（0 关闭） |
+| `eventProgressMs` | `5000` | 后台事件进度广播间隔（0 关闭） |
 | `maxResultChars` | `2000` | act 卡片展开时保留的结果全文长度 |
 | `showDockStrip` | `true` | 是否显示输入框梳理条 |
 | `showActCards` | `true` | 梳理页是否显示 act 卡片区 |

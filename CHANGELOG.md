@@ -2,6 +2,17 @@
 
 All notable changes to this project are documented here. The project follows a loose semantic-versioning scheme tied to DSH Harness releases.
 
+## [0.4.0] - 2026-11-10
+
+### Added
+- `autoEventizeMs` (default 60000): an `act`-wrapped tool that runs past the threshold is detached into a background event instead of blocking the turn.
+- `eventProgressMs` (default 5000): running background events broadcast progress updates so the panel changes while waiting.
+- Background events are expandable in the digest panel (full output), show elapsed time and an `auto` badge.
+
+### Changed
+- Completion notices render as a recognizable **⚙ 后台事件** card (status, duration, summary, output block) instead of a plain `System notice` line.
+- The protocol asks the model to eventize any parallelizable long operation, not only those over ~60 seconds.
+
 ## [0.3.4] - 2026-11-09
 
 ### Added
