@@ -2,6 +2,11 @@
 
 All notable changes to this project are documented here. The project follows a loose semantic-versioning scheme tied to DSH Harness releases.
 
+## [0.6.1] - 2026-11-11
+
+### Fixed
+- The settings `Config` schema no longer breaks plugin loading or tests when `@deepseek-ai/schemastery` is unavailable (CI/clean checkout): it is required optionally and `Config` falls back to `undefined`.
+
 ## [0.6.0] - 2026-11-11
 
 ### Added
