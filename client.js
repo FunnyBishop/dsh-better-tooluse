@@ -32,6 +32,19 @@ window.__ModuleLoader__.load({
     const TEXT = {
       zh: {
         title: '梳理',
+        settingsNav: '决策流',
+        settingsTitle: '决策流设置',
+        settingsIntro: '控制 act describe 强制与自动事件化',
+        actDescribeLabel: '强制 act describe',
+        actDescribeDesc: '每次普通工具调用必须用 act 包装并附带 describe',
+        autoEventizeLabel: '自动事件化',
+        autoEventizeDesc: '长工具超过阈值时自动转后台，完成后自动回到对话',
+        thresholdLabel: '自动事件化阈值（毫秒）',
+        saveSettings: '保存',
+        settingsSaved: '已保存',
+        settingsFailed: '保存失败',
+        settingsPersistNote: '已生效，但未能写入配置（仅本次运行）',
+        settingsLoading: '加载中…',
         idle: '空闲',
         running: '进行中',
         empty: '发起任务后，这里会实时显示每一步判断与工具事件。',
@@ -105,6 +118,19 @@ window.__ModuleLoader__.load({
       },
       en: {
         title: 'Digest',
+        settingsNav: 'Decision stream',
+        settingsTitle: 'Decision stream settings',
+        settingsIntro: 'Control mandatory act describe and auto eventization',
+        actDescribeLabel: 'Require act describe',
+        actDescribeDesc: 'Every ordinary tool call must be wrapped in act with a describe field',
+        autoEventizeLabel: 'Auto eventize',
+        autoEventizeDesc: 'Long tools move to the background and return later',
+        thresholdLabel: 'Auto eventize threshold (ms)',
+        saveSettings: 'Save',
+        settingsSaved: 'Saved',
+        settingsFailed: 'Save failed',
+        settingsPersistNote: 'Applied, but could not persist (this run only)',
+        settingsLoading: 'Loading…',
         idle: 'Idle',
         running: 'Working',
         empty: 'Judgements and tool events will appear here as the agent works.',
@@ -653,6 +679,26 @@ window.__ModuleLoader__.load({
 .dsb-sec[open] > summary.dsb-sec-summary { margin-bottom: 4px; }
 .dsb-sec > summary.dsb-sec-summary:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 2px; border-radius: 4px; }
 
+/* Settings page section (DSH settings.section slot). */
+.dsb-set { display: flex; flex-direction: column; gap: 10px; max-width: 560px; padding: 4px 2px; font-size: 12px; color: var(--dsw-alias-label-secondary); }
+.dsb-set-title { font-size: 13px; font-weight: 600; color: var(--dsw-alias-label-primary); }
+.dsb-set-hint { opacity: .75; }
+.dsb-set-row { display: flex; align-items: center; gap: 12px; padding: 9px 11px; border: 1px solid var(--dsw-alias-border-l1); border-radius: 9px; background: var(--dsw-alias-bg-layer-1); }
+.dsb-set-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.dsb-set-text b { color: var(--dsw-alias-label-primary); font-weight: 600; }
+.dsb-set-desc { font-size: 11px; opacity: .72; }
+.dsb-switch { appearance: none; -webkit-appearance: none; margin-left: auto; flex: 0 0 auto; width: 36px; height: 20px; border-radius: 999px; border: 1px solid var(--dsw-alias-border-l1); background: var(--dsw-alias-bg-layer-2); position: relative; cursor: pointer; outline: none; }
+.dsb-switch::after { content: ''; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: var(--dsw-alias-label-secondary); transition: transform .15s ease, background .15s ease; }
+.dsb-switch:checked { background: var(--dsw-alias-brand-primary); border-color: transparent; }
+.dsb-switch:checked::after { transform: translateX(16px); background: var(--dsw-alias-bg-base); }
+.dsb-switch:disabled { opacity: .5; cursor: default; }
+.dsb-set-input { margin-left: auto; width: 120px; padding: 4px 6px; border: 1px solid var(--dsw-alias-border-l1); border-radius: 7px; background: var(--dsw-alias-bg-base); color: var(--dsw-alias-label-primary); font: inherit; }
+.dsb-set-actions { display: flex; align-items: center; gap: 10px; }
+.dsb-set-note { font-size: 11px; }
+.dsb-set-note.dsb-ok { color: var(--dsw-alias-state-success-primary, #2ea043); }
+.dsb-set-note.dsb-err { color: var(--dsw-alias-state-error-primary, #d1242f); }
+
+
 
 /* Keep long tool names, args and results inside the sidebar panel: every flex
    child must be shrinkable and every free-form text block must be breakable. */
@@ -832,6 +878,74 @@ window.__ModuleLoader__.load({
     }
 
     /* ------------------------------------------------------------- tab UI -- */
+
+
+    /** Settings page section: act-describe enforcement and auto eventization. */
+    function SettingsSection() {
+      const tr = t()
+      const [state, setState] = React.useState(null)
+      const [busy, setBusy] = React.useState(false)
+      const [note, setNote] = React.useState(null)
+
+      React.useEffect(() => {
+        let alive = true
+        fetch(ROUTE + '/settings', { headers: { accept: 'application/json' } })
+          .then(response => response.json())
+          .then(data => { if (alive && data && data.ok && data.settings) setState({ ...data.settings }) })
+          .catch(() => {})
+        return () => { alive = false }
+      }, [])
+
+      if (state === null) return h('div', { className: 'dsb-set dsb-set-hint' }, tr.settingsLoading)
+
+      const patch = (changes) => setState(previous => ({ ...previous, ...changes }))
+      const save = async () => {
+        setBusy(true)
+        setNote(null)
+        try {
+          const response = await fetch(ROUTE + '/settings', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify(state),
+          })
+          const data = await response.json()
+          if (data && data.ok) {
+            setState({ ...data.settings })
+            setNote({ tone: data.persisted === false ? '' : 'dsb-ok', text: data.persisted === false ? tr.settingsPersistNote : tr.settingsSaved })
+          } else {
+            setNote({ tone: 'dsb-err', text: tr.settingsFailed })
+          }
+        } catch {
+          setNote({ tone: 'dsb-err', text: tr.settingsFailed })
+        } finally {
+          setBusy(false)
+        }
+      }
+
+      const row = (label, desc, control) => h('div', { className: 'dsb-set-row' },
+        h('span', { className: 'dsb-set-text' }, h('b', null, label), desc ? h('span', { className: 'dsb-set-desc' }, desc) : null),
+        control,
+      )
+
+      return h('div', { className: 'dsb-set' },
+        h('div', { className: 'dsb-set-title' }, tr.settingsTitle),
+        h('div', { className: 'dsb-set-hint' }, tr.settingsIntro),
+        row(tr.actDescribeLabel, tr.actDescribeDesc, h('input', { type: 'checkbox', className: 'dsb-switch', checked: state.actDescribe === true, disabled: busy, onChange: event => patch({ actDescribe: event.target.checked }) })),
+        row(tr.autoEventizeLabel, tr.autoEventizeDesc, h('input', { type: 'checkbox', className: 'dsb-switch', checked: state.autoEventize === true, disabled: busy, onChange: event => patch({ autoEventize: event.target.checked }) })),
+        state.autoEventize
+          ? row(tr.thresholdLabel, '', h('input', { type: 'number', className: 'dsb-set-input', min: 0, max: 600000, step: 1000, value: String(state.autoEventizeMs ?? 60000), disabled: busy, onChange: event => patch({ autoEventizeMs: Number(event.target.value) }) }))
+          : null,
+        h('div', { className: 'dsb-set-actions' },
+          h('button', { className: 'dsb-btn dsb-primary', type: 'button', disabled: busy, onClick: () => void save() }, tr.saveSettings),
+          note !== null ? h('span', { className: 'dsb-set-note ' + note.tone }, note.text) : null,
+        ),
+      )
+    }
+
+    const IconSettings = ({ size }) => h('svg', { width: size, height: size, viewBox: '0 0 16 16', fill: 'none', stroke: 'currentColor', strokeWidth: 1.3, strokeLinecap: 'round' },
+      h('circle', { cx: 8, cy: 8, r: 2.1 }),
+      h('path', { d: 'M8 1.6v2.2M8 12.2v2.2M1.6 8h2.2M12.2 8h2.2M3.5 3.5l1.6 1.6M10.9 10.9l1.6 1.6M12.5 3.5l-1.6 1.6M5.1 10.9l-1.6 1.6' }),
+    )
 
     function DigestTab(props) {
       const tr = t()
@@ -1213,6 +1327,21 @@ window.__ModuleLoader__.load({
           name: 'tool.call.toolview',
           key: 'act',
         }, props => h(ActCard, props)))
+        /** Settings page section: two switches for describe enforcement and auto eventization. */
+        ctx.slots.inject('settings.section.icon', () => ctx.slots.register({
+          name: 'settings.section.icon',
+          id: 'dsh-better-tooluse',
+          order: 120,
+          label: () => t().settingsNav,
+        }, ({ size }) => h(IconSettings, { size: size ?? 16 })))
+
+        ctx.slots.inject('settings.section', () => ctx.slots.register({
+          name: 'settings.section',
+          id: 'dsh-better-tooluse',
+          order: 120,
+          label: () => t().settingsNav,
+        }, () => h(SettingsSection, null)))
+
 
         /** better-sidebar is optional: register the 梳理 tab only when its client service arrives. */
         ctx.inject(['betterSidebar'], (scope) => {

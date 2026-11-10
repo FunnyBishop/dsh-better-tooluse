@@ -2,6 +2,11 @@
 
 All notable changes to this project are documented here. The project follows a loose semantic-versioning scheme tied to DSH Harness releases.
 
+## [0.6.0] - 2026-11-11
+
+### Added
+- A **Decision stream** page in the DSH settings navigation (`settings.section` / `settings.section.icon` slots) with the two switches: require act describe, and auto eventize (plus the threshold). Saves go through `configEditor`, so they persist in the profile row and survive restarts; the resident protocol text follows the describe switch.
+
 ## [0.5.0] - 2026-11-10
 
 ### Added

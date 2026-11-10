@@ -33,7 +33,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { buildProtocolText } from './lib/protocol.js'
-import { normalizeConfig, clientConfigOf, Config } from './lib/config.js'
+import { normalizeConfig, clientConfigOf, CONFIG_DEFAULTS, Config } from './lib/config.js'
 import { describeGuardDecision, DEFAULT_EXEMPT } from './lib/guard.js'
 import { normalizeActArguments } from './lib/repair.js'
 
@@ -950,6 +950,61 @@ export function apply(ctx, rawConfig = {}) {
 
   /* -------------------------------------------------------------- http ---- */
 
+  /* ---------------------------------------------------------- settings ---- */
+
+  const currentSettings = () => ({
+    actDescribe: config.actDescribe !== false,
+    autoEventize: config.autoEventize !== false && config.autoEventizeMs > 0,
+    autoEventizeMs: config.autoEventizeMs > 0 ? config.autoEventizeMs : CONFIG_DEFAULTS.autoEventizeMs,
+  })
+
+  const applySettings = (patch) => {
+    const body = patch !== null && typeof patch === 'object' ? patch : {}
+    const actDescribe = typeof body.actDescribe === 'boolean' ? body.actDescribe : config.actDescribe !== false
+    const autoEventize = typeof body.autoEventize === 'boolean' ? body.autoEventize : config.autoEventize !== false
+    const requested = body.autoEventizeMs === undefined ? currentSettings().autoEventizeMs : Number(body.autoEventizeMs)
+    const autoEventizeMs = Number.isFinite(requested) ? Math.min(600000, Math.max(0, Math.trunc(requested))) : CONFIG_DEFAULTS.autoEventizeMs
+    config.actDescribe = actDescribe
+    config.enforceDescribe = actDescribe ? 'hard' : 'off'
+    config.autoEventize = autoEventize
+    config.autoEventizeMs = autoEventize ? autoEventizeMs : 0
+    return { actDescribe, autoEventize, autoEventizeMs }
+  }
+
+  const persistSettings = async (next) => {
+    const editor = ctx.get('configEditor')
+    if (editor === undefined || typeof editor.edit !== 'function' || typeof editor.entries !== 'function') return false
+    try {
+      const entries = editor.entries()
+      const entry = Array.isArray(entries) ? entries.find(item => {
+        const id = String(item?.id ?? item?.patchId ?? '')
+        const name = String(item?.name ?? item?.plugin ?? '')
+        return id.includes('dsh-better-tooluse') || name.includes('dsh-better-tooluse')
+      }) : undefined
+      if (entry === undefined) return false
+      await editor.edit(entry, (current) => ({
+        ...(current !== null && typeof current === 'object' ? current : {}),
+        actDescribe: next.actDescribe,
+        autoEventize: next.autoEventize,
+        autoEventizeMs: next.autoEventizeMs,
+      }))
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  const settingsRoute = async (req, res) => {
+    try {
+      const body = await readBody(req)
+      const next = applySettings(body)
+      const persisted = await persistSettings(next)
+      sendJson(res, 200, { ok: true, settings: currentSettings(), persisted })
+    } catch (error) {
+      sendJson(res, 400, { error: String(error?.message ?? error) })
+    }
+  }
+
   const readBody = (req) => new Promise((resolve, reject) => {
     let size = 0
     const chunks = []
@@ -1156,6 +1211,8 @@ export function apply(ctx, rawConfig = {}) {
     if (sub === '/report' && req.method === 'POST') return void report(req, res)
     if (sub === '/events/kill' && req.method === 'POST') return void eventsKill(req, res)
     if (sub === '/config' && req.method === 'GET') return sendJson(res, 200, { ok: true, config: clientConfigOf(config) })
+    if (sub === '/settings' && req.method === 'GET') return sendJson(res, 200, { ok: true, settings: currentSettings() })
+    if (sub === '/settings' && req.method === 'POST') return void settingsRoute(req, res)
     if (sub === '/state' && req.method === 'GET') return stateRoute(req, res, url)
     if (sub === '/health' && req.method === 'GET') {
       let subscribers = 0
