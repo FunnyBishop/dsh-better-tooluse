@@ -644,6 +644,16 @@ window.__ModuleLoader__.load({
 .dsb-quick { display: flex; gap: 5px; flex-wrap: wrap; }
 .dsb-select { border: 1px solid var(--dsw-alias-border-l1); border-radius: 8px; background: var(--dsw-alias-bg-base); color: var(--dsw-alias-label-primary); font: inherit; font-size: 11px; padding: 4px 6px; }
 
+/* Collapsible digest sections: native details/summary with a chevron. */
+.dsb-sec > summary.dsb-sec-summary { list-style: none; cursor: pointer; user-select: none; margin-bottom: 0; }
+.dsb-sec > summary.dsb-sec-summary::-webkit-details-marker { display: none; }
+.dsb-sec > summary.dsb-sec-summary::before { content: '▸'; flex: 0 0 auto; font-size: 10px; opacity: .6; }
+.dsb-sec[open] > summary.dsb-sec-summary::before { content: '▾'; }
+.dsb-sec > summary.dsb-sec-summary:hover { color: var(--dsw-alias-label-primary); }
+.dsb-sec[open] > summary.dsb-sec-summary { margin-bottom: 4px; }
+.dsb-sec > summary.dsb-sec-summary:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 2px; border-radius: 4px; }
+
+
 /* Keep long tool names, args and results inside the sidebar panel: every flex
    child must be shrinkable and every free-form text block must be breakable. */
 .dsb-tab, .dsb-tab-scroll, .dsb-actcards, .dsb-actcard, .dsb-act, .dsb-actdock, .dsb-act-item, .dsb-actrow, .dsb-bg-item, .dsb-bg-list, .dsb-card, .dsb-usage, .dsb-stats { min-width: 0; max-width: 100%; }
@@ -834,6 +844,27 @@ window.__ModuleLoader__.load({
       const [actFilter, setActFilter] = React.useState('all')
       const [expandedAct, setExpandedAct] = React.useState(null)
       const [expandedBg, setExpandedBg] = React.useState(null)
+      const [sectionState, setSectionState] = React.useState(() => {
+        try {
+          const raw = window.localStorage.getItem('dsh-better-tooluse.sections.v1')
+          const parsed = raw ? JSON.parse(raw) : {}
+          return parsed !== null && typeof parsed === 'object' ? parsed : {}
+        } catch {
+          return {}
+        }
+      })
+      const sectionOpen = (id) => sectionState[id] !== false
+      const rememberSection = (id, open) => {
+        setSectionState(prev => {
+          const next = { ...prev, [id]: open === true }
+          try {
+            window.localStorage.setItem('dsh-better-tooluse.sections.v1', JSON.stringify(next))
+          } catch {
+            /* storage unavailable: keep the in-memory state */
+          }
+          return next
+        })
+      }
       const [nudgeMode, setNudgeMode] = React.useState('auto')
       const [toolFilter, setToolFilter] = React.useState('all')
       const reportedRef = React.useRef(false)
@@ -929,8 +960,8 @@ window.__ModuleLoader__.load({
         ),
         h('div', { className: 'dsb-tab-scroll' },
           (css.showActCards
-            ? h('div', { className: 'dsb-card' },
-              h('div', { className: 'dsb-card-title' }, h(Icon, null), tr.actSection),
+            ? h('details', { className: 'dsb-card dsb-sec', open: sectionOpen('act'), onToggle: event => rememberSection('act', event.currentTarget.open) },
+              h('summary', { className: 'dsb-card-title dsb-sec-summary' }, h(Icon, null), tr.actSection),
               h('div', { className: 'dsb-actfilter' },
                 ['all', 'running', 'failed'].map(key => h('button', {
                   key,
@@ -994,12 +1025,12 @@ window.__ModuleLoader__.load({
                 ),
             )
             : null),
-          h('div', { className: 'dsb-card dsb-goal-card' },
-            h('div', { className: 'dsb-card-title' }, h(IconTarget, null), tr.goal),
+          h('details', { className: 'dsb-card dsb-goal-card dsb-sec', open: sectionOpen('goal'), onToggle: event => rememberSection('goal', event.currentTarget.open) },
+            h('summary', { className: 'dsb-card-title dsb-sec-summary' }, h(IconTarget, null), tr.goal),
             h('div', { className: 'dsb-card-body' }, digest.goal === null ? tr.noGoal : digest.goal.text),
           ),
-          h('div', { className: 'dsb-card' },
-            h('div', { className: 'dsb-card-title' }, h(IconSpark, null), tr.direction),
+          h('details', { className: 'dsb-card dsb-sec', open: sectionOpen('direction'), onToggle: event => rememberSection('direction', event.currentTarget.open) },
+            h('summary', { className: 'dsb-card-title dsb-sec-summary' }, h(IconSpark, null), tr.direction),
             lastDecision === null && lastFinding === null
               ? h('div', { className: 'dsb-card-body dsb-dir-sub' }, tr.noDirection)
               : h('div', { className: 'dsb-card-body' },
@@ -1014,8 +1045,8 @@ window.__ModuleLoader__.load({
             stat(tr.elapsed, formatDuration(elapsed(events, status))),
           ),
           background.length > 0
-            ? h('div', { className: 'dsb-card' },
-              h('div', { className: 'dsb-card-title' }, h(Icon, null), tr.events),
+            ? h('details', { className: 'dsb-card dsb-sec', open: sectionOpen('events'), onToggle: event => rememberSection('events', event.currentTarget.open) },
+              h('summary', { className: 'dsb-card-title dsb-sec-summary' }, h(Icon, null), tr.events),
               h('div', { className: 'dsb-bg-list' },
                 background.slice().sort((a, b) => (a.status === 'running' ? 0 : 1) - (b.status === 'running' ? 0 : 1) || (b.time || 0) - (a.time || 0)).slice(0, 12).map(event => {
                   const state = event.status === 'running' ? tr.runningTool : event.status === 'killed' ? tr.killed : event.status === 'failed' ? tr.failed : tr.done
@@ -1044,8 +1075,8 @@ window.__ModuleLoader__.load({
               ),
             )
             : null,
-          h('div', { className: 'dsb-card' },
-            h('div', { className: 'dsb-card-title' }, h(Icon, null), tr.toolUsage),
+          h('details', { className: 'dsb-card dsb-sec', open: sectionOpen('tools'), onToggle: event => rememberSection('tools', event.currentTarget.open) },
+            h('summary', { className: 'dsb-card-title dsb-sec-summary' }, h(Icon, null), tr.toolUsage),
             digest.usage.length === 0
               ? h('div', { className: 'dsb-card-body dsb-dir-sub' }, tr.noTools)
               : h('div', { className: 'dsb-usage' },
@@ -1061,8 +1092,8 @@ window.__ModuleLoader__.load({
                 )),
               ),
           ),
-          h('div', { className: 'dsb-card' },
-            h('div', { className: 'dsb-card-title' }, h(Icon, null), tr.timeline),
+          h('details', { className: 'dsb-card dsb-sec', open: sectionOpen('timeline'), onToggle: event => rememberSection('timeline', event.currentTarget.open) },
+            h('summary', { className: 'dsb-card-title dsb-sec-summary' }, h(Icon, null), tr.timeline),
             digest.steps.length === 0
               ? h('div', { className: 'dsb-card-body dsb-dir-sub' }, tr.noTimeline)
               : h('div', null,

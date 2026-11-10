@@ -2,6 +2,11 @@
 
 All notable changes to this project are documented here. The project follows a loose semantic-versioning scheme tied to DSH Harness releases.
 
+## [0.4.2] - 2026-11-10
+
+### Added
+- Collapsible digest sections: act calls, goal, current direction, background events, tool usage and timeline can each be folded/unfolded; the collapsed state is remembered in localStorage.
+
 ## [0.4.1] - 2026-11-10
 
 ### Fixed

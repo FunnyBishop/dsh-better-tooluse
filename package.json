@@ -1,6 +1,6 @@
 {
   "name": "dsh-better-tooluse",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "Better tool-use visibility: mandatory act/describe wrapper, decision-stream protocol with a packaged skill, live act cards in the 梳理 sidebar, configurable enforcement, and background-event support.",
   "icon": "./icon.svg",
   "type": "module",
