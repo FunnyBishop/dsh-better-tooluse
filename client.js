@@ -565,7 +565,7 @@ window.__ModuleLoader__.load({
 .dsb-note.dsb-err { color: var(--dsw-alias-state-error-primary); }
 .dsb-empty { padding: 2px 0; color: var(--dsw-alias-label-secondary); opacity: .8; }
 
-.dsb-tab { box-sizing: border-box; display: flex; flex-direction: column; height: 100%; min-height: 0; font-size: 12px; color: var(--dsw-alias-label-secondary); background: var(--dsw-alias-bg-base); }
+.dsb-tab { box-sizing: border-box; display: flex; flex-direction: column; width: 100%; height: 100%; min-height: 0; overflow: hidden; font-size: 12px; color: var(--dsw-alias-label-secondary); background: var(--dsw-alias-bg-base); }
 .dsb-tab-head { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; padding: 10px 12px 6px; }
 .dsb-tab-head .dsb-title { font-size: 13px; }
 .dsb-tab-scroll { flex: 1 1 auto; min-height: 0; overflow: auto; overscroll-behavior: contain; padding: 0 12px 10px; display: flex; flex-direction: column; gap: 10px; }
@@ -643,6 +643,20 @@ window.__ModuleLoader__.load({
 .dsb-actcard-pre { margin: 0; max-height: 220px; overflow: auto; white-space: pre-wrap; word-break: break-word; font-family: var(--dsw-font-mono, monospace); font-size: 11px; color: var(--dsw-alias-label-primary); background: var(--dsw-alias-bg-base); border-radius: 6px; padding: 6px; }
 .dsb-quick { display: flex; gap: 5px; flex-wrap: wrap; }
 .dsb-select { border: 1px solid var(--dsw-alias-border-l1); border-radius: 8px; background: var(--dsw-alias-bg-base); color: var(--dsw-alias-label-primary); font: inherit; font-size: 11px; padding: 4px 6px; }
+
+/* Keep long tool names, args and results inside the sidebar panel: every flex
+   child must be shrinkable and every free-form text block must be breakable. */
+.dsb-tab, .dsb-tab-scroll, .dsb-actcards, .dsb-actcard, .dsb-act, .dsb-actdock, .dsb-act-item, .dsb-actrow, .dsb-bg-item, .dsb-bg-list, .dsb-card, .dsb-usage, .dsb-stats { min-width: 0; max-width: 100%; }
+.dsb-tab-scroll { overflow-x: hidden; }
+.dsb-tab-scroll > * { min-width: 0; max-width: 100%; }
+.dsb-actcard, .dsb-act, .dsb-actdock, .dsb-act-item, .dsb-actrow, .dsb-bg-item, .dsb-card { overflow-x: hidden; }
+.dsb-actcard-head, .dsb-act-item-head, .dsb-actrow-head, .dsb-act-head, .dsb-bg-head, .dsb-actdock-head { min-width: 0; flex-wrap: nowrap; }
+.dsb-actcard-tool, .dsb-act-item-tool, .dsb-actrow-tool, .dsb-act-tool, .dsb-bg-label, .dsb-usage-name { min-width: 0; flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dsb-actcard-ms, .dsb-actdock-count, .dsb-bg-meta, .dsb-actcard-more, .dsb-chip { flex: 0 0 auto; }
+.dsb-actcard-thinking, .dsb-actcard-purpose, .dsb-actcard-args, .dsb-act-item-thinking, .dsb-act-item-purpose, .dsb-act-desc, .dsb-actrow-thinking, .dsb-actrow-purpose, .dsb-bg-summary, .dsb-scroll-hint { min-width: 0; overflow-wrap: anywhere; word-break: break-word; }
+.dsb-actcard-pre, .dsb-bg-pre, .dsb-act-item-result, .dsb-actrow-result, .dsb-actcard-result { min-width: 0; max-width: 100%; overflow-wrap: anywhere; word-break: break-word; }
+.dsb-act-item-result, .dsb-actrow-result, .dsb-actcard-result { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 `
 
     function eventView(event, tr) {

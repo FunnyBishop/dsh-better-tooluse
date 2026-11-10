@@ -2,6 +2,11 @@
 
 All notable changes to this project are documented here. The project follows a loose semantic-versioning scheme tied to DSH Harness releases.
 
+## [0.4.1] - 2026-11-10
+
+### Fixed
+- Digest panel no longer overflows its sidebar border when many act calls or long tool names/arguments are shown: flex children get `min-width: 0`, long text wraps or truncates with an ellipsis, and the panel clips horizontally.
+
 ## [0.4.0] - 2026-11-10
 
 ### Added
