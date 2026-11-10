@@ -33,7 +33,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { buildProtocolText } from './lib/protocol.js'
-import { normalizeConfig, clientConfigOf } from './lib/config.js'
+import { normalizeConfig, clientConfigOf, Config } from './lib/config.js'
 import { describeGuardDecision, DEFAULT_EXEMPT } from './lib/guard.js'
 import { normalizeActArguments } from './lib/repair.js'
 
@@ -226,7 +226,7 @@ export function apply(ctx, rawConfig = {}) {
         }
       }
     }
-    return buildProtocolText({ tone: config.protocolTone, eventEnabled: config.eventEnabled })
+    return buildProtocolText({ tone: config.protocolTone, eventEnabled: config.eventEnabled, actDescribe: config.actDescribe })
   }
 
   ctx.systemPrompt.section({
@@ -1246,5 +1246,7 @@ export function apply(ctx, rawConfig = {}) {
 }
 
 export const inject = ['systemPrompt']
+
+export { Config } from './lib/config.js'
 
 export { splitDescribe, protocolLines, reasoningDigest, summarizeArgs }

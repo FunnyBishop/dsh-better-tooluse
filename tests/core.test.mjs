@@ -147,3 +147,23 @@ test('normalizeActArguments passes objects and repairs strings', () => {
   assert.equal(repaired.value.tool, 'ops_bash')
   assert.equal(normalizeActArguments('}{').value, null)
 })
+
+test('settings toggles derive the effective guard and eventize values', () => {
+  const defaults = normalizeConfig({})
+  assert.equal(defaults.actDescribe, true)
+  assert.equal(defaults.enforceDescribe, 'hard')
+  assert.equal(defaults.autoEventize, true)
+  assert.equal(normalizeConfig({ actDescribe: false }).enforceDescribe, 'off')
+  assert.equal(normalizeConfig({ autoEventize: false }).autoEventizeMs, 0)
+  assert.equal(normalizeConfig({ autoEventize: true, autoEventizeMs: 30000 }).autoEventizeMs, 30000)
+  assert.equal(normalizeConfig({ autoEventize: false, autoEventizeMs: 30000 }).autoEventizeMs, 0)
+  assert.equal(normalizeConfig({ enforceDescribe: 'off' }).actDescribe, false)
+})
+
+test('protocol text drops the mandatory act rule when describe is off', () => {
+  const on = buildProtocolText({ actDescribe: true })
+  assert.ok(on.includes('必须用'))
+  const off = buildProtocolText({ actDescribe: false })
+  assert.ok(off.includes('工具可直接调用'))
+  assert.ok(!off.includes('必须用 `act` 包装'))
+})

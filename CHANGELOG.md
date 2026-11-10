@@ -2,6 +2,11 @@
 
 All notable changes to this project are documented here. The project follows a loose semantic-versioning scheme tied to DSH Harness releases.
 
+## [0.5.0] - 2026-11-10
+
+### Added
+- The plugin now exports a Loader `Config` schema, so the DSH settings page renders two switches: **act describe** (require the mandatory `act({describe})` wrapper) and **auto eventize** (move long act calls to the background), plus the `autoEventizeMs` threshold. Both apply on the next mount and the protocol text adapts (the mandatory rule is replaced with an optional one when describe is off).
+
 ## [0.4.2] - 2026-11-10
 
 ### Added
