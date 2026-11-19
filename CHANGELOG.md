@@ -2,6 +2,11 @@
 
 All notable changes to this project are documented here. The project follows a loose semantic-versioning scheme tied to DSH Harness releases.
 
+## [0.6.2] - 2026-11-19
+
+### Fixed
+- `run_code` (PTC) no longer errors under the describe guard: the tool itself is exempt from `act`, and its program-internal tool calls (call ids ending in `:ptc:<n>`) are exempt from the per-call describe requirement. `act` now explicitly refuses to wrap `run_code` with a helpful message.
+
 ## [0.6.1] - 2026-11-11
 
 ### Fixed

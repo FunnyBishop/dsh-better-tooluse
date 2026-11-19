@@ -7,7 +7,7 @@ import {
   reasoningDigest,
   summarizeArgs,
 } from '../index.js'
-import { describeGuardDecision, DEFAULT_EXEMPT } from '../lib/guard.js'
+import { describeGuardDecision, DEFAULT_EXEMPT, PTC_NESTED_MARKER } from '../lib/guard.js'
 import { normalizeConfig, CONFIG_DEFAULTS } from '../lib/config.js'
 import { buildProtocolText } from '../lib/protocol.js'
 import { repairJsonText, normalizeActArguments } from '../lib/repair.js'
@@ -166,4 +166,13 @@ test('protocol text drops the mandatory act rule when describe is off', () => {
   const off = buildProtocolText({ actDescribe: false })
   assert.ok(off.includes('工具可直接调用'))
   assert.ok(!off.includes('必须用 `act` 包装'))
+})
+
+test('run_code is directly callable and PTC nested calls are exempt', () => {
+  assert.ok(DEFAULT_EXEMPT.includes('run_code'))
+  assert.equal(describeGuardDecision({ toolName: 'run_code', mode: 'hard' }), undefined)
+  assert.equal(PTC_NESTED_MARKER, ':ptc:')
+  assert.equal(describeGuardDecision({ toolName: 'ops_bash', callId: 'root-call:ptc:1', rootCallId: 'root-call', mode: 'hard' }), undefined)
+  assert.equal(describeGuardDecision({ toolName: 'ops_bash', callId: 'act-inner-1', mode: 'hard' }), undefined)
+  assert.match(describeGuardDecision({ toolName: 'ops_bash', callId: 'plain-call', mode: 'hard' }), /describe/)
 })

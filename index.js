@@ -746,6 +746,7 @@ export function apply(ctx, rawConfig = {}) {
       if (tool.length === 0) throw new Error('act requires the tool name')
       if (tool === ACT_TOOL_NAME) throw new Error('act cannot wrap itself')
       if (tool === EVENT_TOOL_NAME) throw new Error('call event directly to eventize a long operation')
+      if (tool === 'run_code') throw new Error('run_code 是 PTC 编排器，必须直接调用；不要用 act 包裹它（程序内部的工具调用已豁免 describe）。')
       const toolsService = ctx.get('tools')
       if (toolsService === undefined) throw new Error('the tools service is not available')
       const definition = toolsService.executable(tool, agent, exec.toolSet)
